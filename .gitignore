@@ -1,0 +1,18 @@
+# Foundry
+out/
+cache/
+lib/
+foundry.lock
+broadcast/
+
+# Antigravity Kit
+.agent/
+.agents/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary files
+/tmp/
