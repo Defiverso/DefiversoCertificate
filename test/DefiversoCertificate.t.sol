@@ -29,10 +29,10 @@ contract DefiversoCertificateTest is Test {
         assertFalse(cert.paused());
     }
 
-    function test_SignAndVerifyBool() public {
-        // Hashing using abi.encode
+    function test_SignAndVerifyCourses() public {
         bytes32 hash = keccak256(abi.encode(oct1, name1, course));
-        
+        bytes32 expectedCourseId = keccak256(abi.encodePacked(course));
+
         bytes32[] memory hashes = new bytes32[](1);
         address[] memory students = new address[](1);
         hashes[0] = hash;
@@ -43,6 +43,10 @@ contract DefiversoCertificateTest is Test {
 
         assertTrue(cert.verify(oct1, name1, course));
         assertTrue(cert.checkHasCertificate(student));
+
+        bytes32[] memory courses = cert.getStudentCourses(student);
+        assertEq(courses.length, 1);
+        assertEq(courses[0], expectedCourseId);
     }
 
     function test_VerifyInvalidData() public {
@@ -163,7 +167,8 @@ contract DefiversoCertificateTest is Test {
 
     function test_CheckHasCertificate() public {
         assertFalse(cert.checkHasCertificate(student));
-        
+        assertEq(cert.getStudentCourses(student).length, 0);
+
         bytes32[] memory hashes = new bytes32[](1);
         address[] memory students = new address[](1);
         hashes[0] = keccak256(abi.encode(oct1, name1, course));
@@ -171,12 +176,129 @@ contract DefiversoCertificateTest is Test {
 
         vm.prank(professor);
         cert.signCertificates(hashes, students, course);
-        
+
         assertTrue(cert.checkHasCertificate(student));
+        assertEq(cert.getStudentCourses(student).length, 1);
     }
 
     function test_SignEmptyArrays() public {
         vm.prank(professor);
         cert.signCertificates(new bytes32[](0), new address[](0), course);
+    }
+
+    function test_GetStudentCourses_MultipleCourses() public {
+        string memory course2 = "Web3 Advanced";
+        bytes32 courseId1 = keccak256(abi.encodePacked(course));
+        bytes32 courseId2 = keccak256(abi.encodePacked(course2));
+
+        bytes32[] memory h1 = new bytes32[](1);
+        address[] memory s1 = new address[](1);
+        h1[0] = keccak256(abi.encode(oct1, name1, course));
+        s1[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h1, s1, course);
+
+        bytes32[] memory h2 = new bytes32[](1);
+        address[] memory s2 = new address[](1);
+        h2[0] = keccak256(abi.encode(oct1, name1, course2));
+        s2[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h2, s2, course2);
+
+        bytes32[] memory courses = cert.getStudentCourses(student);
+        assertEq(courses.length, 2);
+        assertEq(courses[0], courseId1);
+        assertEq(courses[1], courseId2);
+    }
+
+    function test_NoDuplicateCourses() public {
+        bytes32[] memory h1 = new bytes32[](1);
+        address[] memory s1 = new address[](1);
+        h1[0] = keccak256(abi.encode(oct1, name1, course));
+        s1[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h1, s1, course);
+
+        // Sign same course again with different cert data
+        bytes32[] memory h2 = new bytes32[](1);
+        address[] memory s2 = new address[](1);
+        h2[0] = keccak256(abi.encode("OCTA0002", name1, course));
+        s2[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h2, s2, course);
+
+        // Student should still have only 1 course ID
+        bytes32[] memory courses = cert.getStudentCourses(student);
+        assertEq(courses.length, 1);
+    }
+
+    function test_MultipleCoursesDifferentStudents() public {
+        address student2 = address(0xDEF);
+        bytes32 courseId = keccak256(abi.encodePacked(course));
+
+        bytes32[] memory hashes = new bytes32[](2);
+        address[] memory students = new address[](2);
+        hashes[0] = keccak256(abi.encode(oct1, name1, course));
+        hashes[1] = keccak256(abi.encode("OCTA0002", "Jane Doe", course));
+        students[0] = student;
+        students[1] = student2;
+
+        vm.prank(professor);
+        cert.signCertificates(hashes, students, course);
+
+        bytes32[] memory c1 = cert.getStudentCourses(student);
+        bytes32[] memory c2 = cert.getStudentCourses(student2);
+        assertEq(c1.length, 1);
+        assertEq(c2.length, 1);
+        assertEq(c1[0], courseId);
+        assertEq(c2[0], courseId);
+    }
+
+    function test_HasStudentCompletedCourse() public {
+        bytes32 courseId = keccak256(abi.encodePacked(course));
+        assertFalse(cert.hasStudentCompletedCourse(student, courseId));
+
+        bytes32[] memory hashes = new bytes32[](1);
+        address[] memory students = new address[](1);
+        hashes[0] = keccak256(abi.encode(oct1, name1, course));
+        students[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(hashes, students, course);
+
+        assertTrue(cert.hasStudentCompletedCourse(student, courseId));
+        assertFalse(
+            cert.hasStudentCompletedCourse(
+                student,
+                keccak256(abi.encodePacked("Unknown Course"))
+            )
+        );
+    }
+
+    function test_GetStudentCourseCount() public {
+        assertEq(cert.getStudentCourseCount(student), 0);
+
+        bytes32[] memory h1 = new bytes32[](1);
+        address[] memory s1 = new address[](1);
+        h1[0] = keccak256(abi.encode(oct1, name1, course));
+        s1[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h1, s1, course);
+        assertEq(cert.getStudentCourseCount(student), 1);
+
+        string memory course2 = "Web3 Advanced";
+        bytes32[] memory h2 = new bytes32[](1);
+        address[] memory s2 = new address[](1);
+        h2[0] = keccak256(abi.encode(oct1, name1, course2));
+        s2[0] = student;
+
+        vm.prank(professor);
+        cert.signCertificates(h2, s2, course2);
+        assertEq(cert.getStudentCourseCount(student), 2);
     }
 }

@@ -16,6 +16,7 @@ Uma infraestrutura de certificação on-chain robusta, segura e **100% compatív
 
 - **Gestão de Professores**: O `owner` controla quem pode assinar certificados.
 - **Assinatura em Lote**: Emita múltiplos certificados em uma única transação usando hashes pré-calculados.
+- **Cursos por Aluno**: Cada aluno acumula um array de IDs de cursos concluídos, com deduplicação automática O(1).
 - **Verificação Pública**: Qualquer pessoa pode validar um certificado se possuir os dados originais (**Octacode + Nome + Curso**).
 
 ## 🛠️ Guia de Desenvolvimento
@@ -34,9 +35,11 @@ forge test
 forge coverage
 ```
 
-## 📝 Integração Off-chain (Exemplo Ethers.js v6)
+## 📝 Integração Off-chain (Ethers.js v6)
 
-Para garantir a privacidade total, o hash deve ser gerado separadamente.
+Para garantir a privacidade total, os hashes devem ser gerados separadamente.
+
+### Gerando o Hash do Certificado
 
 ```javascript
 const { ethers } = require("ethers");
@@ -59,12 +62,37 @@ const hash = generateHash("OCTA0001", "John Doe", "Formação Defiverso");
 // await contract.signCertificates([hash], [studentWallet], "Formação Defiverso");
 ```
 
-### Verificando no Frontend
+### Gerando o ID do Curso (courseId)
+
+O `courseId` é o `keccak256` do nome do curso, usado internamente para rastrear cursos por aluno:
+
+```javascript
+const courseId = ethers.solidityPackedKeccak256(
+  ["string"],       // Tipo do parâmetro
+  ["Nome do Curso"] // Valor real do nome do curso
+);
+```
+
+### Consultando Cursos de um Aluno
+
+```javascript
+// Retorna array de courseIds (bytes32[])
+const courseIds = await contract.getStudentCourses(studentWallet);
+
+// Verifica se o aluno completou um curso específico
+const completed = await contract.hasStudentCompletedCourse(studentWallet, courseId);
+
+// Retorna o número de cursos concluídos
+const count = await contract.getStudentCourseCount(studentWallet);
+```
+
+### Verificando um Certificado
 
 ```javascript
 // Retorna true se os dados forem válidos
 const isValid = await contract.verify(octacode, name, course);
 ```
+
 
 ## 📜 Licença
 

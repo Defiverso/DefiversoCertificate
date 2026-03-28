@@ -14,8 +14,11 @@ contract DefiversoCertificate {
     /// @notice Indicates if the contract is currently paused.
     bool public paused;
 
-    /// @notice Mapping to check if an address owns at least one certificate.
-    mapping(address => bool) public hasCertificate;
+    /// @notice Mapping of completed course IDs per student.
+    mapping(address => bytes32[]) private studentCourses;
+
+    /// @notice Auxiliary mapping for O(1) duplicate check.
+    mapping(address => mapping(bytes32 => bool)) private hasCompletedCourse;
 
     /// @notice Mapping of authorized professors who can sign certificates.
     mapping(address => bool) public isProfessor;
@@ -33,7 +36,11 @@ contract DefiversoCertificate {
     // Events
     event ProfessorRegistered(address indexed professor);
     event ProfessorUnregistered(address indexed professor);
-    event CertificatesSigned(string indexed courseName, uint256 count);
+    event CertificatesSigned(
+        string indexed courseName,
+        bytes32 courseId,
+        uint256 count
+    );
     event OwnershipTransferred(
         address indexed oldOwner,
         address indexed newOwner
@@ -124,16 +131,22 @@ contract DefiversoCertificate {
         uint256 length = hashes.length;
         if (length != students.length) revert ArrayLengthMismatch();
 
+        bytes32 courseId = keccak256(abi.encodePacked(courseName));
+
         for (uint256 i = 0; i < length; ) {
             certificateRecipient[hashes[i]] = true;
-            hasCertificate[students[i]] = true;
+
+            if (!hasCompletedCourse[students[i]][courseId]) {
+                hasCompletedCourse[students[i]][courseId] = true;
+                studentCourses[students[i]].push(courseId);
+            }
 
             unchecked {
                 ++i;
             }
         }
 
-        emit CertificatesSigned(courseName, length);
+        emit CertificatesSigned(courseName, courseId, length);
     }
 
     /**
@@ -156,11 +169,46 @@ contract DefiversoCertificate {
     }
 
     /**
+     * @notice Returns all completed course IDs for a student.
+     * @param student The wallet address of the student.
+     * @return bytes32[] Array of course IDs (keccak256 hashes).
+     */
+    function getStudentCourses(
+        address student
+    ) external view returns (bytes32[] memory) {
+        return studentCourses[student];
+    }
+
+    /**
+     * @notice Checks if a student has completed a specific course.
+     * @param student The wallet address of the student.
+     * @param courseId The keccak256 hash of the course name.
+     * @return bool True if the student has completed the course.
+     */
+    function hasStudentCompletedCourse(
+        address student,
+        bytes32 courseId
+    ) external view returns (bool) {
+        return hasCompletedCourse[student][courseId];
+    }
+
+    /**
+     * @notice Returns the number of courses completed by a student.
+     * @param student The wallet address of the student.
+     * @return uint256 The count of completed courses.
+     */
+    function getStudentCourseCount(
+        address student
+    ) external view returns (uint256) {
+        return studentCourses[student].length;
+    }
+
+    /**
      * @notice Checks if a wallet address holds any valid certificate.
      * @param student The wallet address to investigate.
      * @return bool True if the address has been registered as a recipient.
      */
     function checkHasCertificate(address student) external view returns (bool) {
-        return hasCertificate[student];
+        return studentCourses[student].length > 0;
     }
 }
