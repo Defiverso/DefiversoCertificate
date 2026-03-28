@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DefiversoCertificate — Test Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface-hover: #1a2235;
+      --border: #1e293b;
+      --border-focus: #38bdf8;
+      --text: #e2e8f0;
+      --text-muted: #8897ae;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --success: #34d399;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --radius: 12px;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(14,165,233,0.04) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .header h1 span { color: var(--accent); }
+    .badge {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      background: rgba(56,189,248,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(56,189,248,0.2);
+      letter-spacing: 0.02em;
+    }
+    .wallet-area {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .wallet-info {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .wallet-info .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .dot.disconnected { background: var(--error); }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #0a0e17;
+    }
+    .btn-primary:hover { background: #0ea5e9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-execute {
+      background: rgba(56,189,248,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(56,189,248,0.3);
+    }
+    .btn-execute:hover { background: rgba(56,189,248,0.2); }
+    .btn-execute:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-write {
+      background: rgba(251,191,36,0.1);
+      color: var(--warning);
+      border: 1px solid rgba(251,191,36,0.3);
+    }
+    .btn-write:hover { background: rgba(251,191,36,0.2); }
+    .btn-write:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Layout */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .status-card .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+    .status-card .value {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 1.5rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Cards */
+    .fn-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.2s;
+    }
+    .fn-card:hover { border-color: #2a3a52; }
+    .fn-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .fn-name {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .fn-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .fn-tag.view { background: rgba(52,211,153,0.1); color: var(--success); }
+    .fn-tag.write { background: rgba(251,191,36,0.1); color: var(--warning); }
+
+    /* Inputs */
+    .input-group {
+      margin-bottom: 0.6rem;
+    }
+    .input-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .input-group input, .input-group textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.8rem;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      transition: border-color 0.2s;
+    }
+    .input-group input:focus, .input-group textarea:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .input-group input::placeholder, .input-group textarea::placeholder {
+      color: #4a5568;
+    }
+
+    /* Result */
+    .result {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      display: none;
+      word-break: break-all;
+      white-space: pre-wrap;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .result.success { display: block; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: var(--success); }
+    .result.error { display: block; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: var(--error); }
+    .result.info { display: block; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); color: var(--accent); }
+
+    /* Log */
+    .log-section {
+      margin-top: 2rem;
+    }
+    #log {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+    #log:empty::before {
+      content: 'Aguardando ações...';
+      color: #3a4560;
+    }
+    .log-entry { border-bottom: 1px solid var(--border); padding: 0.25rem 0; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #4a5568; }
+    .log-ok { color: var(--success); }
+    .log-err { color: var(--error); }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header { padding: 1rem; }
+      .container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎓 <span>Defiverso</span>Certificate</h1>
+  <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+    <span class="badge">Sepolia Testnet</span>
+    <div class="wallet-area">
+      <div class="wallet-info"><span class="dot disconnected" id="statusDot"></span><span id="walletAddr">Não conectado</span></div>
+      <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">Conectar Wallet</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar" style="display:none;">
+    <div class="status-card">
+      <div class="label">Owner</div>
+      <div class="value" id="infoOwner">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Pausado</div>
+      <div class="value" id="infoPaused">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Você é Professor?</div>
+      <div class="value" id="infoProf">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Contrato</div>
+      <div class="value" style="font-size:0.72rem;">0xbc894...3Fe4</div>
+    </div>
+  </div>
+
+  <!-- READ FUNCTIONS -->
+  <div class="section">
+    <div class="section-title">📖 Funções de Leitura (View)</div>
+
+    <!-- verify -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">verify()</span>
+        <span class="fn-tag view">view</span>
+      </div>
+      <div class="input-group">
+        <label>Octacode</label>
+        <input id="v_octacode" placeholder="OCTA0001">
+      </div>
+      <div class="input-group">
+        <label>Nome Completo do Aluno</label>
+        <input id="v_name" placeholder="John Doe">
+      </div>
+      <div class="input-group">
+        <label>Nome do Curso</label>
+        <input id="v_course" placeholder="Formação Defiverso">
+      </div>
+      <button class="btn btn-execute" onclick="callVerify()">Verificar</button>
+      <div class="result" id="res_verify"></div>
+    </div>
+
+    <!-- checkHasCertificate -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">checkHasCertificate()</span>
+        <span class="fn-tag view">view</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Aluno</label>
+        <input id="chk_addr" placeholder="0x...">
+      </div>
+      <button class="btn btn-execute" onclick="callCheckHas()">Consultar</button>
+      <div class="result" id="res_checkHas"></div>
+    </div>
+
+    <!-- getStudentCourses -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">getStudentCourses()</span>
+        <span class="fn-tag view">view</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Aluno</label>
+        <input id="gsc_addr" placeholder="0x...">
+      </div>
+      <button class="btn btn-execute" onclick="callGetCourses()">Consultar</button>
+      <div class="result" id="res_getCourses"></div>
+    </div>
+
+    <!-- getStudentCourseCount -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">getStudentCourseCount()</span>
+        <span class="fn-tag view">view</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Aluno</label>
+        <input id="gcc_addr" placeholder="0x...">
+      </div>
+      <button class="btn btn-execute" onclick="callGetCount()">Consultar</button>
+      <div class="result" id="res_getCount"></div>
+    </div>
+
+    <!-- hasStudentCompletedCourse -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">hasStudentCompletedCourse()</span>
+        <span class="fn-tag view">view</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Aluno</label>
+        <input id="hscc_addr" placeholder="0x...">
+      </div>
+      <div class="input-group">
+        <label>Nome do Curso (será convertido para courseId automaticamente)</label>
+        <input id="hscc_course" placeholder="Formação Defiverso">
+      </div>
+      <button class="btn btn-execute" onclick="callHasCompleted()">Consultar</button>
+      <div class="result" id="res_hasCompleted"></div>
+    </div>
+  </div>
+
+  <!-- WRITE FUNCTIONS -->
+  <div class="section">
+    <div class="section-title">✍️ Funções de Escrita (Transação)</div>
+
+    <!-- signCertificates -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">signCertificates()</span>
+        <span class="fn-tag write">professor only</span>
+      </div>
+      <div class="input-group">
+        <label>Nome do Curso</label>
+        <input id="sign_course" placeholder="Formação Defiverso">
+      </div>
+      <div class="input-group">
+        <label>Octacode</label>
+        <input id="sign_octa" placeholder="OCTA0001">
+      </div>
+      <div class="input-group">
+        <label>Nome do Aluno</label>
+        <input id="sign_name" placeholder="John Doe">
+      </div>
+      <div class="input-group">
+        <label>Wallet do Aluno</label>
+        <input id="sign_wallet" placeholder="0x...">
+      </div>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin:0.5rem 0;">O hash será calculado automaticamente: <code>keccak256(abi.encode(octacode, name, course))</code></p>
+      <button class="btn btn-write" onclick="callSign()">Assinar Certificado</button>
+      <div class="result" id="res_sign"></div>
+    </div>
+
+    <!-- registerProfessor -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">registerProfessor()</span>
+        <span class="fn-tag write">owner only</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Professor</label>
+        <input id="reg_addr" placeholder="0x...">
+      </div>
+      <button class="btn btn-write" onclick="callRegister()">Registrar</button>
+      <div class="result" id="res_register"></div>
+    </div>
+
+    <!-- unregisterProfessor -->
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">unregisterProfessor()</span>
+        <span class="fn-tag write">owner only</span>
+      </div>
+      <div class="input-group">
+        <label>Endereço do Professor</label>
+        <input id="unreg_addr" placeholder="0x...">
+      </div>
+      <button class="btn btn-write" onclick="callUnregister()">Remover</button>
+      <div class="result" id="res_unregister"></div>
+    </div>
+  </div>
+
+  <!-- Utils -->
+  <div class="section">
+    <div class="section-title">🔧 Utilitários</div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">Gerar courseId</span>
+        <span class="fn-tag view">local</span>
+      </div>
+      <div class="input-group">
+        <label>Nome do Curso</label>
+        <input id="util_course" placeholder="Formação Defiverso">
+      </div>
+      <button class="btn btn-execute" onclick="generateCourseId()">Gerar Hash</button>
+      <div class="result" id="res_courseId"></div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <span class="fn-name">Gerar Certificate Hash</span>
+        <span class="fn-tag view">local</span>
+      </div>
+      <div class="input-group">
+        <label>Octacode</label>
+        <input id="util_octa" placeholder="OCTA0001">
+      </div>
+      <div class="input-group">
+        <label>Nome do Aluno</label>
+        <input id="util_name" placeholder="John Doe">
+      </div>
+      <div class="input-group">
+        <label>Nome do Curso</label>
+        <input id="util_crs" placeholder="Formação Defiverso">
+      </div>
+      <button class="btn btn-execute" onclick="generateCertHash()">Gerar Hash</button>
+      <div class="result" id="res_certHash"></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-section">
+    <div class="section-title">📋 Log</div>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
+
+  const CONTRACT_ADDRESS = "0xbc894CBa8176CB69dB49aACFA08A1c19f3B53Fe4";
+  const SEPOLIA_CHAIN_ID = "0xaa36a7";
+
+  const ABI = [
+    "function owner() view returns (address)",
+    "function paused() view returns (bool)",
+    "function isProfessor(address) view returns (bool)",
+    "function certificateRecipient(bytes32) view returns (bool)",
+    "function verify(string,string,string) view returns (bool)",
+    "function checkHasCertificate(address) view returns (bool)",
+    "function getStudentCourses(address) view returns (bytes32[])",
+    "function getStudentCourseCount(address) view returns (uint256)",
+    "function hasStudentCompletedCourse(address,bytes32) view returns (bool)",
+    "function signCertificates(bytes32[],address[],string)",
+    "function registerProfessor(address)",
+    "function unregisterProfessor(address)",
+    "function transferOwnership(address)",
+    "function setPaused(bool)"
+  ];
+
+  let provider = null;
+  let signer = null;
+  let contract = null;
+  let contractRead = null;
+
+  function log(msg, type = '') {
+    const el = document.getElementById('log');
+    const time = new Date().toLocaleTimeString('pt-BR');
+    const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : '';
+    el.innerHTML = `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${cls}">${msg}</span></div>` + el.innerHTML;
+  }
+
+  function showResult(id, msg, type) {
+    const el = document.getElementById(id);
+    el.className = `result ${type}`;
+    el.textContent = msg;
+  }
+
+  async function loadContractInfo() {
+    try {
+      const [ownerAddr, isPaused] = await Promise.all([
+        contractRead.owner(),
+        contractRead.paused()
+      ]);
+
+      document.getElementById('infoOwner').textContent = ownerAddr.slice(0, 6) + '...' + ownerAddr.slice(-4);
+      document.getElementById('infoPaused').textContent = isPaused ? '⛔ Sim' : '✅ Não';
+
+      if (signer) {
+        const myAddr = await signer.getAddress();
+        const isProf = await contractRead.isProfessor(myAddr);
+        document.getElementById('infoProf').textContent = isProf ? '✅ Sim' : '❌ Não';
+      }
+
+      document.getElementById('statusBar').style.display = 'grid';
+      log('Info do contrato carregada', 'ok');
+    } catch (e) {
+      log('Erro ao carregar info: ' + e.message, 'err');
+    }
+  }
+
+  window.connectWallet = async function () {
+    try {
+      if (!window.ethereum) {
+        alert('MetaMask não encontrada! Instale a extensão.');
+        return;
+      }
+
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (chainId !== SEPOLIA_CHAIN_ID) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: SEPOLIA_CHAIN_ID }]
+          });
+        } catch (e) {
+          alert('Troque para a rede Sepolia no MetaMask.');
+          return;
+        }
+      }
+
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      contractRead = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+
+      const addr = await signer.getAddress();
+      document.getElementById('walletAddr').textContent = addr.slice(0, 6) + '...' + addr.slice(-4);
+      document.getElementById('statusDot').classList.remove('disconnected');
+      document.getElementById('statusDot').classList.add('connected');
+      document.getElementById('connectBtn').textContent = 'Conectado';
+      document.getElementById('connectBtn').disabled = true;
+
+      log(`Wallet conectada: ${addr}`, 'ok');
+      await loadContractInfo();
+    } catch (e) {
+      log('Erro ao conectar: ' + e.message, 'err');
+    }
+  };
+
+  function ensureConnected() {
+    if (!contract) {
+      alert('Conecte sua wallet primeiro!');
+      return false;
+    }
+    return true;
+  }
+
+  // -- Read Functions --
+
+  window.callVerify = async function () {
+    if (!ensureConnected()) return;
+    const oct = document.getElementById('v_octacode').value;
+    const name = document.getElementById('v_name').value;
+    const course = document.getElementById('v_course').value;
+    try {
+      log(`verify("${oct}", "${name}", "${course}")...`);
+      const result = await contractRead.verify(oct, name, course);
+      showResult('res_verify', result ? '✅ Certificado VÁLIDO' : '❌ Certificado NÃO encontrado', result ? 'success' : 'error');
+      log(`verify → ${result}`, 'ok');
+    } catch (e) {
+      showResult('res_verify', e.reason || e.message, 'error');
+      log('verify falhou: ' + (e.reason || e.message), 'err');
+    }
+  };
+
+  window.callCheckHas = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('chk_addr').value;
+    try {
+      log(`checkHasCertificate("${addr}")...`);
+      const result = await contractRead.checkHasCertificate(addr);
+      showResult('res_checkHas', result ? '✅ Possui certificado(s)' : '❌ Nenhum certificado', result ? 'success' : 'info');
+      log(`checkHasCertificate → ${result}`, 'ok');
+    } catch (e) {
+      showResult('res_checkHas', e.reason || e.message, 'error');
+      log('checkHasCertificate falhou: ' + (e.reason || e.message), 'err');
+    }
+  };
+
+  window.callGetCourses = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('gsc_addr').value;
+    try {
+      log(`getStudentCourses("${addr}")...`);
+      const result = await contractRead.getStudentCourses(addr);
+      if (result.length === 0) {
+        showResult('res_getCourses', 'Nenhum curso encontrado', 'info');
+      } else {
+        showResult('res_getCourses', `${result.length} curso(s):\n${result.join('\n')}`, 'success');
+      }
+      log(`getStudentCourses → ${result.length} cursos`, 'ok');
+    } catch (e) {
+      showResult('res_getCourses', e.reason || e.message, 'error');
+      log('getStudentCourses falhou: ' + (e.reason || e.message), 'err');
+    }
+  };
+
+  window.callGetCount = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('gcc_addr').value;
+    try {
+      log(`getStudentCourseCount("${addr}")...`);
+      const result = await contractRead.getStudentCourseCount(addr);
+      showResult('res_getCount', `Cursos concluídos: ${result}`, 'success');
+      log(`getStudentCourseCount → ${result}`, 'ok');
+    } catch (e) {
+      showResult('res_getCount', e.reason || e.message, 'error');
+      log('getStudentCourseCount falhou: ' + (e.reason || e.message), 'err');
+    }
+  };
+
+  window.callHasCompleted = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('hscc_addr').value;
+    const courseName = document.getElementById('hscc_course').value;
+    try {
+      const courseId = ethers.solidityPackedKeccak256(["string"], [courseName]);
+      log(`hasStudentCompletedCourse("${addr}", courseId: ${courseId.slice(0, 10)}...)...`);
+      const result = await contractRead.hasStudentCompletedCourse(addr, courseId);
+      showResult('res_hasCompleted',
+        result ? `✅ Aluno completou "${courseName}"` : `❌ Aluno NÃO completou "${courseName}"`,
+        result ? 'success' : 'info'
+      );
+      log(`hasStudentCompletedCourse → ${result}`, 'ok');
+    } catch (e) {
+      showResult('res_hasCompleted', e.reason || e.message, 'error');
+      log('hasStudentCompletedCourse falhou: ' + (e.reason || e.message), 'err');
+    }
+  };
+
+  // -- Write Functions --
+
+  window.callSign = async function () {
+    if (!ensureConnected()) return;
+    const courseName = document.getElementById('sign_course').value;
+    const octa = document.getElementById('sign_octa').value;
+    const name = document.getElementById('sign_name').value;
+    const wallet = document.getElementById('sign_wallet').value;
+
+    try {
+      const abiCoder = new ethers.AbiCoder();
+      const encoded = abiCoder.encode(["string", "string", "string"], [octa, name, courseName]);
+      const hash = ethers.keccak256(encoded);
+
+      log(`signCertificates — hash: ${hash.slice(0, 10)}... wallet: ${wallet.slice(0, 10)}...`);
+      showResult('res_sign', '⏳ Enviando transação...', 'info');
+
+      const tx = await contract.signCertificates([hash], [wallet], courseName);
+      showResult('res_sign', `⏳ Tx enviada: ${tx.hash}\nAguardando confirmação...`, 'info');
+      log(`Tx enviada: ${tx.hash}`);
+
+      const receipt = await tx.wait();
+      showResult('res_sign', `✅ Confirmada! Block: ${receipt.blockNumber}\nTx: ${tx.hash}`, 'success');
+      log(`signCertificates confirmada no block ${receipt.blockNumber}`, 'ok');
+    } catch (e) {
+      const msg = e.reason || e.shortMessage || e.message;
+      showResult('res_sign', msg, 'error');
+      log('signCertificates falhou: ' + msg, 'err');
+    }
+  };
+
+  window.callRegister = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('reg_addr').value;
+    try {
+      log(`registerProfessor("${addr}")...`);
+      showResult('res_register', '⏳ Enviando transação...', 'info');
+      const tx = await contract.registerProfessor(addr);
+      showResult('res_register', `⏳ Tx: ${tx.hash}\nAguardando...`, 'info');
+      await tx.wait();
+      showResult('res_register', `✅ Professor registrado!\nTx: ${tx.hash}`, 'success');
+      log('registerProfessor confirmada', 'ok');
+      await loadContractInfo();
+    } catch (e) {
+      const msg = e.reason || e.shortMessage || e.message;
+      showResult('res_register', msg, 'error');
+      log('registerProfessor falhou: ' + msg, 'err');
+    }
+  };
+
+  window.callUnregister = async function () {
+    if (!ensureConnected()) return;
+    const addr = document.getElementById('unreg_addr').value;
+    try {
+      log(`unregisterProfessor("${addr}")...`);
+      showResult('res_unregister', '⏳ Enviando transação...', 'info');
+      const tx = await contract.unregisterProfessor(addr);
+      showResult('res_unregister', `⏳ Tx: ${tx.hash}\nAguardando...`, 'info');
+      await tx.wait();
+      showResult('res_unregister', `✅ Professor removido!\nTx: ${tx.hash}`, 'success');
+      log('unregisterProfessor confirmada', 'ok');
+      await loadContractInfo();
+    } catch (e) {
+      const msg = e.reason || e.shortMessage || e.message;
+      showResult('res_unregister', msg, 'error');
+      log('unregisterProfessor falhou: ' + msg, 'err');
+    }
+  };
+
+  // -- Utility Functions --
+
+  window.generateCourseId = function () {
+    const courseName = document.getElementById('util_course').value;
+    if (!courseName) { showResult('res_courseId', 'Insira o nome do curso', 'error'); return; }
+    const courseId = ethers.solidityPackedKeccak256(["string"], [courseName]);
+    showResult('res_courseId', `courseId: ${courseId}`, 'success');
+    log(`courseId("${courseName}") = ${courseId}`, 'ok');
+  };
+
+  window.generateCertHash = function () {
+    const octa = document.getElementById('util_octa').value;
+    const name = document.getElementById('util_name').value;
+    const crs = document.getElementById('util_crs').value;
+    if (!octa || !name || !crs) { showResult('res_certHash', 'Preencha todos os campos', 'error'); return; }
+    const abiCoder = new ethers.AbiCoder();
+    const encoded = abiCoder.encode(["string", "string", "string"], [octa, name, crs]);
+    const hash = ethers.keccak256(encoded);
+    showResult('res_certHash', `hash: ${hash}`, 'success');
+    log(`certHash("${octa}", "${name}", "${crs}") = ${hash}`, 'ok');
+  };
+
+  // Auto-detect account/chain changes
+  if (window.ethereum) {
+    window.ethereum.on('accountsChanged', () => location.reload());
+    window.ethereum.on('chainChanged', () => location.reload());
+  }
+</script>
+
+</body>
+</html>
